@@ -1,0 +1,98 @@
+{{extend 'layout.html'}}
+<div class="front-divider"></div>
+    <div class="front-overlay-message-wrap">
+        <div class="front-overlay-message-container">
+            <div class="" style="height:500px;width:700px;background-color:white;position:relative;left:250px;top:50px;opacity:0.8;">
+<h1>Welcome {{=f[0]['first_name']}} {{=l[0]['last_name']}}!</h1>
+<h3>Want to post something new?</h3>
+{{=form}}
+{{ctr=0}}
+<h2>Current news items:</h2>
+{{for ctr in range(len(c)):}}
+	<h2>{{=c[ctr]['name']}}</h2>
+	<ol>
+    {{for j in range(len(n)):}}
+		{{if n[j]['category']==c[ctr]['name']:}}
+            {{if n[j]['userid']==a:}}
+        		{{if n[j]['choice']=='article':}}
+        			<li><a href={{=n[j]['url']}} target="_blank">{{=n[j]['heading']}}</a></li>
+        			Posted: {{=n[j]['dt']}}<br/>
+        			{{pass}}
+        		{{if n[j]['choice']=='video':}}
+        			{{u=n[j]['url']}}
+        			{{u=u.split('=')}}
+        			<li>{{=n[j]['heading']}}</li>
+        			<iframe width="560" height="315" src="//www.youtube.com/embed/{{=u[1]}}" frameborder="0" allowfullscreen></iframe><br/>
+                    Posted: {{=n[j]['dt']}}<br/>
+                    {{pass}}
+      		  	<table>
+                    <tr>
+                    	<td>{{=deleteform[j]}}</td>
+                    	<td>{{=editform[j]}}</td>
+                        <td>{{=likeform[j]}}</td>
+                        <td>{{=dislikeform[j]}}</td>
+                    </tr>
+                    <tr>
+                        <td>{{=likes[j]}} people like this.</td>
+                    </tr>
+                    <tr>
+                        <td>{{=dislikes[j]}} people dislike this.</td>
+                    </tr>
+                    {{for k in range(len(cm)):}}
+                    	{{if cm[k]['postid']==n[j]['id']:}}
+                    		{{for l in range(len(us)):}}
+                    			{{if cm[k]['userid']==us[l]['id']:}}
+                    				<tr>
+                                        <td>{{=us[l]['username']}}</td>
+                                        <td>{{=cm[k]['cmt']}}</td>
+                    				</tr>
+                    				{{pass}}
+                    			{{pass}}
+                    		{{pass}}
+                    	{{pass}}
+                    {{=commentform[j]}}
+        		</table>  
+			{{else:}}
+        		{{if n[j]['choice']=='article':}}
+	        		<li><a href={{=n[j]['url']}} target="_blank">{{=n[j]['heading']}}</a></li>
+	        		Posted: {{=n[j]['dt']}}<br/>
+        			{{pass}}
+        		{{if n[j]['choice']=='video':}}
+        			{{u=n[j]['url']}}
+        			{{u=u.split('=')}}
+       				<li>{{=n[j]['heading']}}</li>
+        			<iframe width="560" height="315" src="//www.youtube.com/embed/{{=u[1]}}" frameborder="0" allowfullscreen></iframe><br/>
+                    Posted: {{=n[j]['dt']}}<br/>
+                    {{pass}}
+        		<table>
+        			<tr>
+                        <td>{{=likeform[j]}}</td>
+                        <td>{{=dislikeform[j]}}</td>
+                    </tr>
+                    <tr>
+                        <td>{{=likes[j]}} people like this.</td>
+                    </tr>
+                    <tr>
+                        <td>{{=dislikes[j]}} people dislike this.</td>
+                    </tr>
+                    {{for k in range(len(cm)):}}
+                    	{{if cm[k]['postid']==n[j]['id']:}}
+                    		{{for l in range(len(us)):}}
+                    			{{if cm[k]['userid']==us[l]['id']:}}
+                    				<tr>
+                                        <td>{{=us[l]['username']}}</td>
+                                        <td>{{=cm[k]['cmt']}}</td>
+                    				</tr>
+                    				{{pass}}
+                    			{{pass}}
+                    		{{pass}}
+                    	{{pass}}
+                    {{=commentform[j]}}
+        		</table>
+        	{{pass}}
+        {{else:}}
+        	{{pass}}
+    {{pass}}
+	</ol>
+{{pass}}
+</div></div></div>

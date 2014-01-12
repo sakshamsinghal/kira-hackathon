@@ -1,0 +1,29 @@
+{{extend 'layout.html'}}
+
+
+<div class="front-divider"></div>
+    <div class="front-overlay-message-wrap">
+        <div class="front-overlay-message-container">
+            <div class="" style="height:500px;width:700px;background-color:white;position:relative;left:250px;top:50px;opacity:0.8;">
+            	<h2>{{=T( request.args(0).replace('_',' ').capitalize() )}}</h2>
+<div id="web2py_user_form" style="background-color:white;">
+{{
+if request.args(0)=='login':
+    if not 'register' in auth.settings.actions_disabled:
+        form.add_button(T('Register'),URL(args='register'),_class='btn')
+    pass
+pass
+=form
+}}
+</div>
+<script language="javascript"><!--
+jQuery("#web2py_user_form input:visible:enabled:first").focus();
+{{if request.args(0)=='register':}}
+    web2py_validate_entropy(jQuery('#auth_user_password'),100);
+{{elif request.args(0)=='change_password':}}
+    web2py_validate_entropy(jQuery('#no_table_new_password'),100);
+{{pass}}
+//--></script>
+            </div>
+        </div>
+    </div>

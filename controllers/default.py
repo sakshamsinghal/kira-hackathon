@@ -1,0 +1,515 @@
+# -*- coding: utf-8 -*-
+# this file is released under public domain and you can use without limitations
+
+#########################################################################
+## This is a samples controller
+## - index is the default action of any application
+## - user is required for authentication and authorization
+## - download is for downloading files uploaded in the db (does streaming)
+## - call exposes all registered services (none by default)
+#########################################################################
+import datetime
+
+def index():
+    """
+    example action using the internationalization operator T and flash
+    rendered by views/default/index.html or views/generic.html
+
+    if you need a simple wiki simple replace the two lines below with:
+    return auth.wiki()
+    """
+    if auth.user:    
+        a=auth.user.id
+        b=db(db.auth_user.id==a).select(db.auth_user.username,db.auth_user.account_type)
+        if b[0]['account_type']=='user':
+		redirect(URL(r=request,f='user_homepage'))
+	elif b[0]['account_type']=='admin':
+		redirect(URL(r=request,f='intermediate'))
+	else:
+		response.flash="You may not be having an account"
+    return locals()
+
+def user_homepage():
+    a=auth.user.id
+    f=db(db.auth_user.id==a).select(db.auth_user.first_name)
+    l=db(db.auth_user.id==a).select(db.auth_user.last_name)
+    c=db().select(db.category.name)
+    temp=[]
+    for i in range(len(c)):
+        temp.append(c[i]['name'])
+    form=SQLFORM.factory(db.Field('category','string',requires=IS_IN_SET(temp),required=True,label='Enter category'),
+                        Field('heading','string',label='Enter heading',required=True),
+                        Field('choice','string',requires=IS_IN_SET(['article','video']),required=True,default='article'),
+                        Field('url','string',requires=IS_URL(),label='Enter URL',required=True))
+    #if(form.accepts(request.vars,session)):
+        #db.newsitem.insert(userid=a,category=form.vars.category,choice=form.vars.choice,heading=form.vars.heading,url=form.vars.url,points=100,dt=datetime.datetime.today())
+ #       response.flash='News item successfully added'
+  #      redirect(URL(r=request,f='user_homepage'))
+    n=db().select(db.newsitem.ALL,orderby=~db.newsitem.points)
+    deleteform=[]
+    editform=[]
+    likeform=[]
+    dislikeform=[]
+    totallike=[]
+    totaldislike=[]
+    dislikes=[]
+    likes=[]
+    commentform=[]
+    for j in range(len(n)):
+        p=n[j]['id']
+        likes.append(0)
+        dislikes.append(0)
+        L=db(db.likedposts.postid==p).select(db.likedposts.userid)
+        D=db(db.dislikedposts.postid==p).select(db.dislikedposts.userid)
+        for k in range(len(L)):
+            likes[j]+=1
+        for k in range(len(D)):
+            dislikes[j]+=1
+        if n[j]['userid']==a:
+            deleteform.append(SQLFORM.factory(submit_button="Delete post"))
+            if deleteform[j].process(formname='deleteform[%d]' % j).accepted:
+                db(db.newsitem.id==p).delete()
+                db(db.likedposts.postid==p).delete()
+                db(db.dislikedposts.postid==p).delete()
+                db(db.comments.postid==p).delete()
+                redirect(URL(r=request,f='user_homepage'))
+                response.flash="Successfully deleted post"
+            editform.append(SQLFORM.factory(submit_button="Edit post"))
+            likeform.append(SQLFORM.factory(submit_button="Like post"))
+            dislikeform.append(SQLFORM.factory(submit_button="Dislike post"))
+            commentform.append(SQLFORM.factory(db.Field('cmt','string',required=True,label='Comment'),
+                                submit_button="Post comment"))
+            if editform[j].process(formname='editform[%d]'%j).accepted:
+                redirect(URL(r=request,f='changedetails?id=%d'%p))
+            if likeform[j].process(formname='likeform[%d]'%j).accepted:
+                flag=0
+                lk=db(db.likedposts.postid==p).select(db.likedposts.ALL)
+                dlk=db(db.dislikedposts.postid==p).select(db.dislikedposts.ALL)
+                for k in range(len(lk)):
+                    if lk[k]['userid']==a and lk[k]['postid']==p:
+                        flag=1
+                        likes[j]-=1
+                        db(db.likedposts.id==lk[k]['id']).delete()
+                        db(db.newsitem.id==p).update(points=100+(5*likes[j])-(3*dislikes[j]))
+                for k in range(len(dlk)):
+                    if dlk[k]['userid']==a and dlk[k]['postid']==p:
+                        flag=1
+                        db.likedposts.insert(userid=a,postid=p)
+                        pt=db(db.newsitem.id==p).select(db.newsitem.points)
+                        db(db.dislikedposts.id==dlk[k]['id']).delete()
+                        response.flash="Successfully liked post"
+                        likes[j]+=1
+                        dislikes[j]-=1
+                        db(db.newsitem.id==p).update(points=100+(5*likes[j])-(3*dislikes[j]))
+                        redirect(URL(r=request,f='user_homepage'))
+                if flag==0:
+                    db.likedposts.insert(userid=a,postid=p)
+                    pt=db(db.newsitem.id==p).select(db.newsitem.points)
+                    pts=pt[0]['points']
+                    likes[j]+=1
+                    db(db.newsitem.id==p).update(points=100+(5*likes[j])-(3*dislikes[j]))
+                    response.flash="Successfully liked post"
+                    redirect(URL(r=request,f='user_homepage'))
+            if dislikeform[j].process(formname='dislikeform[%d]'%j).accepted:
+                lk=db(db.likedposts.postid==p).select(db.likedposts.ALL)
+                dlk=db(db.dislikedposts.postid==p).select(db.dislikedposts.ALL)
+                flag=0
+                for k in range(len(dlk)):
+                    if dlk[k]['userid']==a and dlk[k]['postid']==p:
+                        flag=1
+                        dislikes[j]-=1
+                        db(db.dislikedposts.id==dlk[k]['id']).delete()
+                        db(db.newsitem.id==p).update(points=100+(5*likes[j])-(3*dislikes[j]))
+                for k in range(len(lk)):
+                    if lk[k]['postid']==p and lk[k]['userid']==a:
+                        flag=1
+                        db.dislikedposts.insert(userid=a,postid=p)
+                        pt=db(db.newsitem.id==p).select(db.newsitem.points)
+                        pts=pt[0]['points']
+                        db(db.likedposts.id==lk[k]['id']).delete()
+                        likes[j]-=1
+                        dislikes[j]+=1
+                        db(db.newsitem.id==p).update(points=100+(5*likes[j])-(3*dislikes[j]))
+                        response.flash="Successfully disliked post"
+                        redirect(URL(r=request,f='user_homepage'))
+                if flag==0:
+                    db.dislikedposts.insert(userid=a,postid=p)
+                    pt=db(db.newsitem.id==p).select(db.newsitem.points)
+                    pts=pt[0]['points']
+                    dislikes[j]+=1
+                    db(db.newsitem.id==p).update(points=100+(5*likes[j])-(3*dislikes[j]))
+                    response.flash="Succesfully disliked post"
+                    redirect(URL(r=request,f='user_homepage'))
+            if commentform[j].process(formname='commentform[%d]'%j).accepted:
+                db.comments.insert(userid=a,postid=p,cmt=commentform.vars.cmt)
+                response.flash="Your comment has been added"
+        else:
+            p=n[j]['id']
+            deleteform.append(SQLFORM.factory())
+            editform.append(SQLFORM.factory())
+            likeform.append(SQLFORM.factory(submit_button="Like post"))
+            dislikeform.append(SQLFORM.factory(submit_button="Dislike post"))
+            commentform.append(SQLFORM.factory(db.Field('cmt','string',required=True,label='Comment'),
+                                submit_button="Post comment"))
+            if likeform[j].process(formname='likeform[%d]'%j).accepted:
+                flag=0
+                lk=db(db.likedposts.postid==p).select(db.likedposts.ALL)
+                dlk=db(db.dislikedposts.postid==p).select(db.dislikedposts.ALL)
+                for k in range(len(lk)):
+                    if lk[k]['userid']==a and lk[k]['postid']==p:
+                        flag=1
+                        likes[j]-=1
+                        db(db.likedposts.id==lk[k]['id']).delete()
+                        db(db.newsitem.id==p).update(points=100+(5*likes[j])-(3*dislikes[j]))
+                for k in range(len(dlk)):
+                    if dlk[k]['userid']==a and dlk[k]['postid']==p:
+                        flag=1
+                        db.likedposts.insert(userid=a,postid=p)
+                        pt=db(db.newsitem.id==p).select(db.newsitem.points)
+                        pts=pt[0]['points']
+                        db(db.dislikedposts.id==dlk[k]['id']).delete()
+                        likes[j]+=1
+                        dislikes[j]-=1
+                        db(db.newsitem.id==p).update(points=100+(5*likes[j])-(3*dislikes[j]))
+                        response.flash="Successfully liked post"
+                        redirect(URL(r=request,f='user_homepage'))
+                if flag==0:
+                    db.likedposts.insert(userid=a,postid=p)
+                    pt=db(db.newsitem.id==p).select(db.newsitem.points)
+                    pts=pt[0]['points']
+                    likes[j]+=1
+                    db(db.newsitem.id==p).update(points=100+(5*likes[j])-(3*dislikes[j]))
+                    response.flash="Successfully liked post"
+                    redirect(URL(r=request,f='user_homepage'))
+            if dislikeform[j].process(formname='dislikeform[%d]'%j).accepted:
+                lk=db(db.likedposts.postid==p).select(db.likedposts.ALL)
+                dlk=db(db.dislikedposts.postid==p).select(db.dislikedposts.ALL)
+                flag=0
+                for k in range(len(dlk)):
+                    if dlk[k]['userid']==a and dlk[k]['postid']==p:
+                        flag=1
+                        dislikes[j]-=1
+                        db(db.likedposts.id==dlk[k]['id']).delete()
+                        db(db.newsitem.id==p).update(points=100+(5*likes[j])-(3*dislikes[j]))
+                for k in range(len(lk)):
+                    if lk[k]['postid']==p and lk[k]['userid']==a:
+                        flag=1
+                        db.dislikedposts.insert(userid=a,postid=p)
+                        pt=db(db.newsitem.id==p).select(db.newsitem.points)
+                        pts=pt[0]['points']
+                        db(db.likedposts.id==lk[k]['id']).delete()
+                        likes[j]-=1
+                        dislikes[j]+=1
+                        db(db.newsitem.id==p).update(points=100+(5*likes[j])-(3*dislikes[j]))
+                        response.flash="Successfully disliked post"
+                        redirect(URL(r=request,f='user_homepage'))
+                if flag==0:
+                    db.dislikedposts.insert(userid=a,postid=p)
+                    pt=db(db.newsitem.id==p).select(db.newsitem.points)
+                    pts=pt[0]['points']
+                    dislikes[j]+=1
+                    db(db.newsitem.id==p).update(points=100+(5*likes[j])-(3*dislikes[j]))
+                    response.flash="Successfully disliked post"
+                    redirect(URL(r=request,f='user_homepage'))
+    ''' yy=request.vars.id1
+    if yy is None:
+        print "YY IS NONE"
+    post=db(db.post.id==int(yy)).select(db.post.ALL)
+    #song=db(db.song.Title.contains(x)).select()
+    if post:
+        pass
+    else:
+        post=None
+        #print 'no
+        return locals()
+    x=post[0]['id']
+    likesongid=request.post_vars.songid
+    dislikesongid=request.post_vars.dsongid
+    rate1=request.post_vars.r1
+    rate2=request.post_vars.r2
+    rate3=request.post_vars.r3
+    rate4=request.post_vars.r4
+    rate5=request.post_vars.r5
+    likes=song[0]['Num_likes']
+    dislikes=song[0]['Num_dislikes']
+    if likesongid is not None and int(likesongid)==post[0]['id']:
+            flag=0
+            lk=db(db.likes.postid==post[0]['id']).select(db.likes.ALL)
+            dlk=db(db.dislikes.postid==post[0]['id']).select(db.dislikes.ALL)
+            for j in range(len(lk)):
+                if lk[j]['postid']==song[0]['id'] and lk[j]['userid']==auth.user_id:
+                    flag=1
+                    likes-=1
+                    db(db.likes.id==lk[j]['id']).delete()
+                    #db(db.song.id==song[0]['id']).update(song_rank=100+(2*likes)-dislikes)
+                    #x=db(db.song.id==song[0]['id']).select(db.song.song_rank)
+                    db(db.post.id==post[0]['id']).update(Num_likes=likes,Num_dislikes=dislikes)
+            for j in range(len(dlk)):
+                if dlk[j]['postid']==post[0]['id'] and dlk[j]['userid']==auth.user_id:
+                    flag=1
+                    dislikes-=1
+                    likes+=1
+                    db.likes.insert(postid=song[0]['id'],userid=auth.user_id)
+                    db(db.dislikes.id==dlk[j]['id']).delete()
+                    #db(db.post.id==post[0]['id']).update(song_rank=100+(2*likes)-dislikes)
+                    db(db.post.id==post[0]['id']).update(Num_likes=likes,Num_dislikes=dislikes)
+            if flag==0:
+                db.likes.insert(postid=post[0]['id'],userid=auth.user_id)
+                likes+=1
+                #db(db.song.id==song[0]['id']).update(song_rank=100+(2*likes)-dislikes)
+                db(db.post.id==post[0]['id']).update(Num_likes=likes,Num_dislikes=dislikes)
+    if dislikesongid is not None:
+            if int(dislikesongid)==post[0]['id']:
+                flag=0
+                lk=db(db.likes.postid==post[0]['id']).select(db.likes.ALL)
+                dlk=db(db.dislikes.postid==post[0]['id']).select(db.dislikes.ALL)
+                flag=0
+                for j in range(len(dlk)):
+                    if dlk[j]['postid']==post[0]['id'] and dlk[j]['userid']==auth.user_id:
+                        flag=1
+                        dislikes-=1
+                        db(db.dislikes.id==dlk[j]['id']).delete()
+                        #db(db.song.id==song[0]['id']).update(song_rank=100+(2*likes)-dislikes)
+                        db(db.post.id==post[0]['id']).update(Num_likes=likes,Num_dislikes=dislikes)
+                for j in range(len(lk)):
+                    if lk[j]['postid']==post[0]['id'] and lk[j]['userid']==auth.user_id:
+                        flag=1
+                        dislikes+=1
+                        likes-=1
+                        db(db.likes.id==lk[j]['id']).delete()
+                        db.dislikes.insert(user_id=auth.user_id,postid=post[0]['id'])
+                        #db(db.song.id==song[0]['id']).update(song_rank=100+(2*likes)-dislikes)
+                        db(db.post.id==song[0]['id']).update(Num_likes=likes,Num_dislikes=dislikes)
+                     #redirect(URL(r=request,f='songpage'))
+                if flag==0:
+                    dislikes+=1
+                    db.dislikes.insert(userid=auth.user_id,postid=song[0]['id'])
+                    #db(db.song.id==song[0]['id']).update(song_rank=100+(2*likes)-dislikes)
+                    db(db.post.id==post[0]['id']).update(Num_likes=likes,Num_dislikes=dislikes)
+                 #redirect(URL(r=request,f='songpage'))
+    lk=db().select(db.likes.ALL)
+    dlk=db().select(db.dislikes.ALL)
+    likeform=0
+    dislikeform=0
+    for k in range(len(lk)):
+        if lk[k]['userid']==auth.user_id and lk[k]['postid']==post[0]['id']:
+            likeform=1
+        else:
+            likeform=0
+    for k in range(len(dlk)):
+        if dlk[k]['userid']==auth.user_id and dlk[k]['postid']==post[0]['id']:
+            dislikeform=1
+        else:
+            dislikeform=0'''
+    '''if rate1 is not None and int(rate1)==song[0]['id']:
+        rate=db().select(db.rated.ALL)
+        flag=0
+        for j in range(len(rate)):
+            if rate[j]['song_id']==song[0]['id'] and rate[j]['user_id']==auth.user_id:
+                flag=1
+      	        db(db.rated.id==rate[j]['id']).update(Rating=1)
+        if flag==0:
+            db.rated.insert(song_id=song[0]['id'],user_id=auth.user_id,Rating=1)
+        #redirect(URL(r=request,f='homepage'))
+    if rate2 is not None and int(rate2)==song[0]['id']:
+        rate=db().select(db.rated.ALL)
+        flag=0
+        for j in range(len(rate)):
+            if rate[j]['song_id']==song[0]['id'] and rate[j]['user_id']==auth.user_id:
+                flag=1
+                db(db.rated.id==rate[j]['id']).update(Rating=2)
+        if flag==0:
+            db.rated.insert(song_id=song[0]['id'],user_id=auth.user_id,Rating=2)
+        #    redirect(URL(r=request,f='homepage'))
+    if rate3 is not None and int(rate3)==song[0]['id']:
+        rate=db().select(db.rated.ALL)
+        flag=0
+        for j in range(len(rate)):
+            #flag=1
+            if rate[j]['song_id']==song[0]['id'] and rate[j]['user_id']==auth.user_id:
+                flag=1
+                db(db.rated.id==rate[j]['id']).update(Rating=3)
+        if flag==0:
+            db.rated.insert(song_id=song[0]['id'],user_id=auth.user_id,Rating=3)
+    #        redirect(URL(r=request,f='homepage'))
+    if rate4 is not None and int(rate4)==song[0]['id']:
+        rate=db().select(db.rated.ALL)
+        flag=0
+        for j in range(len(rate)):
+            #flag=1
+            if rate[j]['song_id']==song[0]['id'] and rate[j]['user_id']==auth.user_id:
+                flag=1
+                db(db.rated.id==rate[j]['id']).update(Rating=4)
+        if flag==0:
+            db.rated.insert(song_id=song[0]['id'],user_id=auth.user_id,Rating=4)
+    #        redirect(URL(r=request,f='homepage'))
+    if rate5 is not None and int(rate5)==song[0]['id']:
+        rate=db().select(db.rated.ALL)
+        flag=0
+        for j in range(len(rate)):
+            #flag=1
+            if rate[j]['song_id']==song[0]['id'] and rate[j]['user_id']==auth.user_id:
+                flag=1
+                db(db.rated.id==rate[j]['id']).update(Rating=5)
+        if flag==0:
+            db.rated.insert(song_id=song[0]['id'],user_id=auth.user_id,Rating=5)
+#            redirect(URL(r=request,f='homepage'))
+    #print likeform
+    #print dislikeform
+    check=db((db.rated.user_id==auth.user_id) & (db.rated.song_id==song[0]['id'])).select(db.rated.ALL)
+    #ctr=rate()
+    rate=db(db.rated.song_id==song[0]['id']).select(db.rated.user_id,db.rated.song_id,db.rated.Rating)
+    ctr=0
+    users=[]
+    for i in rate:
+        if i['user_id'] not in users:
+            users.append(i['user_id'])
+            last=db(db.rated.user_id==i['user_id']).select(db.rated.Rating)
+            l=len(last)
+            rt=last[l-1]['Rating']
+            ctr+=rt
+        else:
+            continue
+    ctr=ctr*1.0
+    if len(users)==0:
+        ctr=0
+    else:
+        ctr=(ctr/len(users))
+    db(db.song.id==song[0]['id']).update(Rating=ctr)'''
+    if commentform[j].process(formname='commentform[%d]'%j).accepted:
+	db.comments.insert(userid=a,postid=p,cmt=request.vars.cmt)
+	response.flash="Your comment has been added"
+    cm=db().select(db.comments.ALL)
+    us=db().select(db.auth_user.ALL)
+    return locals()
+
+def changedetails():
+    p=request.vars.id
+    x=db(db.newsitem.id==p).select(db.newsitem.ALL)
+    c=db().select(db.category.ALL)
+    temp=[]
+    for i in range(len(c)):
+        temp.append(c[i]['name'])
+    form=SQLFORM.factory(db.Field('category','string',requires=IS_IN_SET(temp),required=True,default=x[0]['category']),
+                        Field('heading','string',required=True,default=x[0]['heading']),
+                        Field('choice','string',requires=IS_IN_SET(['article','video']),required=True,default=x[0]['choice']),
+                        Field('url','string',requires=IS_URL(),required=True,default=x[0]['url']))
+    if(form.accepts(request.vars,session)):
+        db(db.newsitem.id==p).update(category=form.vars.category,heading=form.vars.heading,choice=form.vars.choice,url=form.vars.url)
+        redirect(URL(r=request,f='user_homepage'))
+        response.flash="Your news item has been updated successfully!"
+    return locals()
+
+def intermediate():
+    form=SQLFORM.factory(db.Field('key','password',readable=False,required=True))
+    if(form.accepts(request.vars,session)):
+        if form.vars.key=='ab%k20*(kd12$':
+            redirect(URL(r=request,f='admin_homepage'))
+        else:
+            response.flash="Wrong key entered."
+    return locals()
+
+def admin_homepage():
+    a=auth.user.id
+    count=0
+    f=db(db.auth_user.id==a).select(db.auth_user.first_name)
+    l=db(db.auth_user.id==a).select(db.auth_user.last_name)
+    form1=SQLFORM.factory(db.Field('category','string',label='Enter category',required=True))
+    if(form1.accepts(request.vars,session)):
+        db.category.insert(name=form1.vars.category)
+        response.flash='New category successfully added.'
+    n=db().select(db.newsitem.ALL,orderby=~db.newsitem.points)
+    c=db().select(db.category.name)
+    form2=[]
+    for i in range(len(n)):
+        form2.append(SQLFORM.factory(submit_button="Delete post"))
+        if form2[i].process(formname='form2[%d]'%i).accepted:
+            db(db.newsitem.id==n[i]['id']).delete()
+            db(db.likedposts.postid==n[i]['id']).delete()
+            db(db.dislikedposts.postid==n[i]['id']).delete()
+            db(db.comments.postid==n[i]['id']).delete()
+    cm=db().select(db.comments.ALL)
+    us=db().select(db.auth_user.ALL) 
+    form=SQLFORM.factory(submit_button="GO")   
+    if form.process(formname='form').accepted:
+        redirect(URL(r=request,f='delete_record'))
+    return locals()
+
+def delete_record():
+    a=auth.user.id
+    records=db().select(db.auth_user.ALL)
+    form=[]
+    for i in range(len(records)):
+        p=records[i]['id']
+        form.append(SQLFORM.factory(submit_button="Delete user"))
+        if form[i].process(formname='form[%d]'%i).accepted:
+            redirect(URL(r=request,f='confirmation_page?id=%d'%p))
+    return locals()
+    
+def confirmation_page():
+    p=request.vars.id
+    x=db(db.auth_user.id==p).select(db.auth_user.ALL)
+    f1=SQLFORM.factory(submit_button="Yes")
+    f2=SQLFORM.factory(submit_button="No")
+    if f1.process(formname='f1').accepted:
+        db(db.auth_user.id==p).delete()
+        db(db.newsitem.userid==p).delete()
+        db(db.likedposts.userid==p).delete()
+        db(db.dislikedposts.userid==p).delete()
+        db(db.comments.userid==p).delete()
+        redirect(URL(r=request,f='admin_homepage'))
+    elif f2.process(formname='f2').accepted:
+        redirect(URL(r=request,f='delete_record'))
+    return locals()
+
+def user():
+    """
+    exposes:
+    http://..../[app]/default/user/login
+    http://..../[app]/default/user/logout
+    http://..../[app]/default/user/register
+    http://..../[app]/default/user/profile
+    http://..../[app]/default/user/retrieve_password
+    http://..../[app]/default/user/change_password
+    use @auth.requires_login()
+        @auth.requires_membership('group name')
+        @auth.requires_permission('read','table name',record_id)
+    to decorate functions that need access control
+    """
+    return dict(form=auth())
+
+
+def download():
+    """
+    allows downloading of uploaded files
+    http://..../[app]/default/download/[filename]
+    """
+    return response.download(request, db)
+
+
+def call():
+    """
+    exposes services. for example:
+    http://..../[app]/default/call/jsonrpc
+    decorate with @services.jsonrpc the functions to expose
+    supports xml, json, xmlrpc, jsonrpc, amfrpc, rss, csv
+    """
+    return service()
+
+
+@auth.requires_signature()
+def data():
+    """
+    http://..../[app]/default/data/tables
+    http://..../[app]/default/data/create/[table]
+    http://..../[app]/default/data/read/[table]/[id]
+    http://..../[app]/default/data/update/[table]/[id]
+    http://..../[app]/default/data/delete/[table]/[id]
+    http://..../[app]/default/data/select/[table]
+    http://..../[app]/default/data/search/[table]
+    but URLs must be signed, i.e. linked with
+      A('table',_href=URL('data/tables',user_signature=True))
+    or with the signed load operator
+      LOAD('default','data.load',args='tables',ajax=True,user_signature=True)
+    """
+    return dict(form=crud())

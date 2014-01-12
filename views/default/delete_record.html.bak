@@ -1,0 +1,12 @@
+{{extend 'layout.html'}}
+<h1>Users</h1>
+{{for i in range(len(records)):}}
+	{{if records[i]['id'] is not a:}}
+		Id: {{=records[i]['id']}}<br/>
+		First name: {{=records[i]['first_name']}}<br/>
+		Last name: {{=records[i]['last_name']}}<br/>
+		Username: {{=records[i]['username']}}<br/>
+		Email address: {{=records[i]['email']}}<br/>
+		{{=form[i]}}
+	{{pass}}
+{{pass}}

@@ -1,0 +1,24 @@
+{{extend 'layout.html'}}
+<h2>Do you want to delete the user?</h2>
+<table>
+	<tr>
+        <td>Id:</td>
+        <td>{{=x[0]['id']}}</td>
+    </tr>
+    <tr>
+        <td>Username:</td>
+        <td>{{=x[0]['username']}}</td>
+    </tr>
+    <tr>
+        <td>Name:</td>
+        <td>{{=x[0]['first_name]}} {{=x[0]['last_name']}}</td>
+    </tr>
+    <tr>
+        <td>Email address:</td>
+        <td>{{=x[0]['email']}}</td>
+    </tr>
+	<tr>
+        <td>{{=f1}}</td>
+        <td>{{=f2}}</td>
+    </tr>
+</table>

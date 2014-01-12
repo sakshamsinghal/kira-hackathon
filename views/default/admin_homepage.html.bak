@@ -1,0 +1,40 @@
+{{extend 'layout.html'}}
+<h1>Welcome {{=f[0]['first_name']}} {{=l[0]['last_name']}}!</h1>
+<h3>Add a new category</h3>
+{{=form1}}
+<a href="http://127.0.0.1:8000/assignment2/default/delete_record">Delete users</a>
+<h2>Current news items:</h2>
+{{for i in range(len(c)):}}
+	<ol><h3>{{=c[i]['name']}}</h3>
+	{{for j in range(len(n)):}}
+		{{if n[j]['category']==c[i]['name']:}}
+        	{{if n[j]['choice']=='article':}}
+	        	<li><a href={{=n[j]['url']}} target="_blank">{{=n[j]['heading']}}</a></li>
+        		{{pass}}
+        	{{if n[j]['choice']=='video':}}
+        		{{u=n[j]['url']}}
+        		{{u=u.split('=')}}
+        		<li>{{=n[j]['heading']}}</li>
+                <iframe width="560" height="315" src="//www.youtube.com/embed/{{=u[1]}}" frameborder="0" allowfullscreen></iframe>	
+                {{pass}}
+      		<table>
+    	    <tr>
+               	<td>{{=form2[j]}}</td>
+            </tr>
+            {{for k in range(len(cm)):}}
+                {{if cm[k]['postid']==n[j]['id']:}}
+               		{{for l in range(len(us)):}}
+                   		{{if cm[k]['userid']==us[l]['id']:}}
+                   			<tr>
+               	               <td>{{=us[l]['username']}}</td>
+                               <td>{{=cm[k]['cmt']}}</td>
+                   			</tr>
+                   			{{pass}}
+                   		{{pass}}
+                   	{{pass}}
+               	{{pass}}
+       		</table>  
+		{{pass}}
+    {{pass}}
+	</ol>
+{{pass}}
